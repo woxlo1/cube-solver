@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cube Solver</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Noto+Sans+JP:wght@400;700&display=swap');
+:root{
+  --bg:#08080f;--s1:#0f0f1e;--s2:#16162a;--border:#222244;
+  --accent:#00e5ff;--accent2:#ff6b35;--text:#dde;--dim:#667;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans JP',sans-serif;min-height:100vh;overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;background:linear-gradient(var(--border) 1px,transparent 1px) 0 0/48px 48px,linear-gradient(90deg,var(--border) 1px,transparent 1px) 0 0/48px 48px;opacity:.18;pointer-events:none;}
+
+/* ─ INPUT ─ */
+.iwrap{max-width:900px;margin:0 auto;padding:28px 16px;}
+.logo{text-align:center;padding:24px 0 18px;}
+.logo h1{font-family:'Space Mono',monospace;font-size:clamp(1.2rem,3.5vw,2rem);letter-spacing:.2em;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.logo p{color:var(--dim);font-size:.78rem;margin-top:4px;}
+.pills{display:flex;justify-content:center;gap:6px;flex-wrap:wrap;margin-bottom:22px;}
+.pill{padding:6px 14px;border-radius:20px;border:1.5px solid var(--border);font-family:'Space Mono',monospace;font-size:.68rem;color:var(--dim);transition:all .22s;}
+.pill.active{border-color:var(--accent);color:var(--accent);box-shadow:0 0 10px rgba(0,229,255,.3);}
+.pill.done{background:var(--accent);border-color:var(--accent);color:#000;}
+.icard{background:var(--s1);border:1px solid var(--border);border-radius:16px;padding:22px;position:relative;overflow:hidden;}
+.icard::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),var(--accent2));}
+.fhead{display:flex;align-items:center;gap:14px;margin-bottom:18px;}
+.fdot{width:40px;height:40px;border-radius:8px;flex-shrink:0;border:2px solid rgba(255,255,255,.2);}
+.fhead h2{font-size:1rem;font-weight:700;}
+.fhead p{font-size:.75rem;color:var(--dim);margin-top:2px;}
+.mtabs{display:flex;gap:8px;margin-bottom:16px;}
+.mtab{padding:7px 18px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--dim);font-family:'Space Mono',monospace;font-size:.72rem;cursor:pointer;transition:all .2s;}
+.mtab.active{background:rgba(0,229,255,.1);border-color:var(--accent);color:var(--accent);}
+.tcol{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start;}
+.fgrid{display:grid;grid-template-columns:repeat(3,52px);gap:4px;}
+.fcell{width:52px;height:52px;border-radius:6px;border:2px solid rgba(255,255,255,.1);cursor:pointer;transition:transform .12s,border-color .12s;display:flex;align-items:center;justify-content:center;font-size:13px;color:rgba(0,0,0,.28);}
+.fcell:hover{transform:scale(1.08);border-color:rgba(255,255,255,.38);}
+.fcell.locked{cursor:default;}.fcell.locked:hover{transform:none;}
+.palette{display:flex;flex-direction:column;gap:6px;}
+.pbtn{width:40px;height:40px;border-radius:8px;border:2px solid rgba(255,255,255,.1);cursor:pointer;transition:all .15s;}
+.pbtn:hover{transform:scale(1.1);}
+.pbtn.sel{border-color:#fff;box-shadow:0 0 0 2px #fff,0 0 10px rgba(255,255,255,.4);transform:scale(1.15);}
+.plabel{font-size:.6rem;color:var(--dim);font-family:'Space Mono',monospace;letter-spacing:.08em;margin-bottom:2px;}
+.fillbar{display:flex;gap:6px;margin-top:10px;}
+.fbtn{padding:5px 12px;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--dim);font-size:.7rem;cursor:pointer;transition:all .2s;}
+.fbtn:hover{border-color:var(--accent);color:var(--accent);}
+.cam-wrap{position:relative;border-radius:10px;overflow:hidden;background:#000;max-width:300px;}
+#camVideo{width:100%;display:block;}
+.cam-guide{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);border:2px solid var(--accent);border-radius:5px;box-shadow:0 0 0 1000px rgba(0,0,0,.4);}
+.cgl{position:absolute;background:rgba(0,229,255,.45);}
+.status{padding:10px 14px;border-radius:7px;font-size:.78rem;margin-top:12px;display:none;}
+.status.show{display:block;}
+.status.err{background:rgba(232,35,58,.12);border:1px solid #e8233a;color:#ff8fa3;}
+.status.ok{background:rgba(6,214,160,.1);border:1px solid #06d6a0;color:#06d6a0;}
+.status.info{background:rgba(0,229,255,.08);border:1px solid var(--accent);color:var(--accent);}
+.btn{padding:11px 22px;border-radius:8px;border:none;font-family:'Space Mono',monospace;font-size:.76rem;letter-spacing:.06em;cursor:pointer;transition:all .2s;font-weight:700;}
+.bp{background:linear-gradient(135deg,var(--accent),#0088dd);color:#000;}
+.bp:hover{transform:translateY(-2px);box-shadow:0 8px 18px rgba(0,229,255,.3);}
+.bp:disabled{opacity:.35;cursor:not-allowed;transform:none;box-shadow:none;}
+.bg{background:transparent;color:var(--dim);border:1px solid var(--border);}
+.bg:hover{border-color:var(--accent);color:var(--accent);}
+.br{background:transparent;color:#ff4466;border:1px solid #ff4466;}
+.brow{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap;}
+
+/* ─ SOLVE ─ */
+#phaseSolve{display:none;width:100%;min-height:100vh;flex-direction:column;}
+#phaseSolve.show{display:flex;}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:11px 18px;background:var(--s1);border-bottom:1px solid var(--border);gap:12px;flex-wrap:wrap;}
+.topbar-title{font-family:'Space Mono',monospace;font-size:.75rem;color:var(--accent);letter-spacing:.15em;}
+.topbar-ctr{font-family:'Space Mono',monospace;font-size:.82rem;}
+.topbar-btns{display:flex;gap:8px;}
+.tbbtn{padding:7px 16px;border-radius:6px;border:none;font-family:'Space Mono',monospace;font-size:.7rem;cursor:pointer;transition:all .2s;font-weight:700;}
+.tbplay{background:var(--accent);color:#000;}
+.tbplay:hover{box-shadow:0 4px 12px rgba(0,229,255,.4);}
+.tbpause{background:var(--accent2);color:#000;}
+.tbrestart{background:transparent;border:1px solid var(--border);color:var(--dim);}
+.tbrestart:hover{border-color:var(--accent);color:var(--accent);}
+.progbar{height:3px;background:var(--border);}
+.progfill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .35s;}
+.smain{flex:1;display:flex;overflow:hidden;}
+.stage{flex:1;display:flex;align-items:center;justify-content:center;background:var(--bg);position:relative;}
+#cc{display:block;touch-action:none;}
+.overlay{
+  position:absolute;bottom:18px;left:50%;transform:translateX(-50%);
+  background:rgba(6,6,14,.9);backdrop-filter:blur(14px);
+  border:1px solid var(--border);border-radius:14px;
+  padding:14px 28px;text-align:center;min-width:200px;pointer-events:none;
+  transition:opacity .2s;
+}
+.ov-step{font-family:'Space Mono',monospace;font-size:.58rem;color:var(--dim);letter-spacing:.14em;margin-bottom:3px;}
+.ov-move{font-family:'Space Mono',monospace;font-size:2.4rem;font-weight:700;line-height:1;margin-bottom:3px;color:var(--text);}
+.ov-desc{font-size:.72rem;color:var(--dim);}
+.sidebar{width:250px;background:var(--s1);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
+.sb-hd{padding:12px 14px 8px;font-family:'Space Mono',monospace;font-size:.58rem;color:var(--dim);letter-spacing:.14em;border-bottom:1px solid var(--border);}
+.mlist{display:flex;flex-wrap:wrap;gap:4px;padding:10px;overflow-y:auto;flex:1;}
+.mchip{padding:4px 8px;border-radius:4px;font-family:'Space Mono',monospace;font-size:.68rem;background:var(--s2);border:1px solid var(--border);color:var(--dim);transition:all .2s;min-width:32px;text-align:center;}
+.mchip.cur{background:var(--accent);border-color:var(--accent);color:#000;box-shadow:0 0 8px rgba(0,229,255,.5);transform:scale(1.12);}
+.mchip.done{color:rgba(6,214,160,.4);border-color:rgba(6,214,160,.25);text-decoration:line-through;}
+.snav{padding:11px 14px;background:var(--s1);border-top:1px solid var(--border);display:flex;gap:8px;}
+.nb{flex:1;padding:11px;border-radius:8px;border:none;font-family:'Space Mono',monospace;font-size:.76rem;cursor:pointer;transition:all .2s;font-weight:700;}
+.nbprev{background:var(--s2);border:1px solid var(--border);color:var(--dim);}
+.nbprev:hover{border-color:var(--accent);color:var(--accent);}
+.nbnext{background:linear-gradient(135deg,var(--accent),#0088dd);color:#000;}
+.nbnext:hover{box-shadow:0 5px 14px rgba(0,229,255,.3);}
+@keyframes pop{0%{transform:translateX(-50%) scale(.94);}55%{transform:translateX(-50%) scale(1.05);}100%{transform:translateX(-50%) scale(1);}}
+.pop{animation:pop .22s ease both;}
+@media(max-width:640px){.sidebar{display:none;}}
+</style>
+</head>
+<body>
+
+<!-- INPUT -->
+<div id="phaseInput">
+<div class="iwrap">
+  <div class="logo"><h1>CUBE SOLVER</h1><p>3×3 ルービックキューブ 自動解法ガイド</p></div>
+  <div class="pills" id="pills"></div>
+  <div class="icard">
+    <div class="fhead"><div class="fdot" id="fdot"></div><div><h2 id="ftitle"></h2><p id="fdesc"></p></div></div>
+    <div class="mtabs">
+      <div class="mtab active" id="tabM" onclick="setMethod('manual')">✏️ 手動</div>
+      <div class="mtab" id="tabC" onclick="setMethod('camera')">📷 カメラ</div>
+    </div>
+    <div id="manualA">
+      <div class="tcol">
+        <div>
+          <div class="fgrid" id="fgrid"></div>
+          <div class="fillbar">
+            <button class="fbtn" onclick="fillAll()">全面塗り</button>
+            <button class="fbtn" onclick="clearFace()">クリア</button>
+          </div>
+        </div>
+        <div class="palette">
+          <div class="plabel">色を選択</div>
+          <div id="palDiv" style="display:flex;flex-direction:column;gap:5px;"></div>
+        </div>
+        <div><div class="plabel" style="margin-bottom:6px;">入力状況</div><div id="netMini"></div></div>
+      </div>
+    </div>
+    <div id="camA" style="display:none;">
+      <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start;">
+        <div>
+          <div class="cam-wrap">
+            <video id="camVideo" autoplay playsinline muted></video>
+            <div class="cam-guide" id="camGuide">
+              <div class="cgl" style="left:33%;top:0;bottom:0;width:1px;"></div>
+              <div class="cgl" style="left:66%;top:0;bottom:0;width:1px;"></div>
+              <div class="cgl" style="top:33%;left:0;right:0;height:1px;"></div>
+              <div class="cgl" style="top:66%;left:0;right:0;height:1px;"></div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:10px;">
+            <button class="btn bp" style="font-size:.7rem;padding:8px 14px;" onclick="capPhoto()">📷 撮影</button>
+            <button class="btn bg" style="font-size:.7rem;padding:8px 14px;" onclick="stopCam()">停止</button>
+          </div>
+        </div>
+        <div>
+          <div class="plabel" style="margin-bottom:8px;">検出結果（タップで修正）</div>
+          <div id="camRes"></div>
+          <button class="btn bg" style="margin-top:8px;font-size:.68rem;padding:7px 12px;display:none;" id="camOk" onclick="acceptCam()">✓ この色を使用</button>
+        </div>
+      </div>
+    </div>
+    <div class="status" id="imsg"></div>
+    <div class="brow">
+      <button class="btn bg" id="btnPrev" onclick="prevFace()" disabled>← 前</button>
+      <button class="btn bp" id="btnNext" onclick="nextFace()">次の面 →</button>
+      <button class="btn br" onclick="clearFace()">リセット</button>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- SOLVE -->
+<div id="phaseSolve">
+  <div class="topbar">
+    <span class="topbar-title">CUBE SOLVER</span>
+    <span class="topbar-ctr" id="tctr">0 / 0 手</span>
+    <div class="topbar-btns">
+      <button class="tbbtn tbplay" id="btnAuto" onclick="toggleAuto()">▶ 自動再生</button>
+      <button class="tbbtn tbrestart" onclick="restart()">← 最初から</button>
+    </div>
+  </div>
+  <div class="progbar"><div class="progfill" id="pfill" style="width:0%"></div></div>
+  <div class="smain">
+    <div class="stage">
+      <canvas id="cc"></canvas>
+      <div class="overlay" id="overlay">
+        <div class="ov-step" id="ovStep">準備完了</div>
+        <div class="ov-move" id="ovMove">—</div>
+        <div class="ov-desc" id="ovDesc">▶ 自動再生 または 次へ を押してください</div>
+      </div>
+    </div>
+    <div class="sidebar">
+      <div class="sb-hd">全手順</div>
+      <div class="mlist" id="mlist"></div>
+    </div>
+  </div>
+  <div class="snav">
+    <button class="nb nbprev" onclick="prevMove()">← 戻る</button>
+    <button class="nb nbnext" onclick="nextMove()">次へ →</button>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════
+// COLORS & FACES
+// ══════════════════════════════════════════════
+const CMAP={W:'#f0f0f0',Y:'#ffd93d',O:'#ff6b35',R:'#e8233a',B:'#0090ff',G:'#06d6a0'};
+const CNAME={W:'白',Y:'黄',O:'橙',R:'赤',B:'青',G:'緑'};
+const FACES=['U','F','R','B','L','D'];
+const FNAME={U:'上面',F:'前面',R:'右面',B:'後面',L:'左面',D:'下面'};
+const FDESC={U:'上を向いた面（白センター）',F:'手前を向いた面（赤センター）',R:'右を向いた面（青センター）',B:'後ろを向いた面（橙センター）',L:'左を向いた面（緑センター）',D:'下を向いた面（黄センター）'};
+const FCOL={U:'#f0f0f0',F:'#e8233a',R:'#0090ff',B:'#ff6b35',L:'#06d6a0',D:'#ffd93d'};
+const C0={U:'W',F:'R',R:'B',B:'O',L:'G',D:'Y'}; // center colors
+
+let curFace=0,selColor='W',method='manual';
+let fd={},sol=[],curMove=-1,isAuto=false,autoTimer=null;
+let camStream=null,camDet=null;
+
+function initFD(){fd={};FACES.forEach(f=>{fd[f]=Array(9).fill(null);fd[f][4]=C0[f];});}
+
+// ══════════════════════════════════════════════
+// INPUT UI
+// ══════════════════════════════════════════════
+function renderPills(){
+  const c=document.getElementById('pills');c.innerHTML='';
+  FACES.forEach((f,i)=>{const p=document.createElement('div');p.className='pill'+(i<curFace?' done':i===curFace?' active':'');p.textContent=FNAME[f];c.appendChild(p);});
+}
+function renderHeader(){
+  const f=FACES[curFace];
+  document.getElementById('fdot').style.background=FCOL[f];
+  document.getElementById('ftitle').textContent=`${FNAME[f]}（${f}面）`;
+  document.getElementById('fdesc').textContent=FDESC[f];
+  document.getElementById('btnPrev').disabled=curFace===0;
+  document.getElementById('btnNext').textContent=curFace<5?'次の面 →':'解法を計算 →';
+  selColor=C0[f];renderPal();
+}
+function renderPal(){
+  const c=document.getElementById('palDiv');c.innerHTML='';
+  Object.entries(CMAP).forEach(([k,v])=>{const b=document.createElement('div');b.className='pbtn'+(k===selColor?' sel':'');b.style.background=v;b.title=CNAME[k];b.onclick=()=>{selColor=k;renderPal();};c.appendChild(b);});
+}
+function renderGrid(){
+  const g=document.getElementById('fgrid');g.innerHTML='';
+  const f=FACES[curFace],d=fd[f];
+  for(let i=0;i<9;i++){
+    const cell=document.createElement('div');cell.className='fcell'+(i===4?' locked':'');
+    cell.style.background=d[i]?CMAP[d[i]]:'#16162a';
+    if(i!==4)cell.onclick=()=>{fd[f][i]=selColor;renderGrid();renderNet();};
+    else cell.textContent='●';
+    g.appendChild(cell);
+  }
+}
+function renderNet(){
+  const c=document.getElementById('netMini'),cs=9;
+  const L=[[null,'U',null,null],['L','F','R','B'],[null,'D',null,null]];
+  let h='<div style="display:grid;gap:2px;">';
+  L.forEach(row=>{h+='<div style="display:flex;gap:2px;">';row.forEach(fid=>{
+    if(!fid){h+=`<div style="width:${3*cs+6}px;height:${3*cs+6}px;"></div>`;return;}
+    const a=FACES[curFace]===fid;
+    h+=`<div style="display:grid;grid-template-columns:repeat(3,${cs}px);gap:1px;padding:2px;background:${a?'rgba(0,229,255,.15)':'rgba(255,255,255,.03)'};border:1px solid ${a?'var(--accent)':'var(--border)'};border-radius:3px;">`;
+    fd[fid].forEach(col=>{h+=`<div style="width:${cs}px;height:${cs}px;border-radius:1px;background:${col?CMAP[col]:'#14142a'};"></div>`;});
+    h+='</div>';
+  });h+='</div>';});
+  c.innerHTML=h+'</div>';
+}
+function fillAll(){const f=FACES[curFace];for(let i=0;i<9;i++){if(i!==4)fd[f][i]=selColor;}renderGrid();renderNet();}
+function clearFace(){const f=FACES[curFace];fd[f]=Array(9).fill(null);fd[f][4]=C0[f];renderGrid();renderNet();}
+function faceOK(f){return fd[f].every(c=>c!==null);}
+function nextFace(){
+  if(!faceOK(FACES[curFace])){smsg('imsg',`${FNAME[FACES[curFace]]}の全マスを入力してください`,'err');return;}
+  hmsg('imsg');
+  if(curFace<5){curFace++;renderHeader();renderGrid();renderNet();renderPills();}
+  else calcSol();
+}
+function prevFace(){if(curFace>0){curFace--;renderHeader();renderGrid();renderNet();renderPills();hmsg('imsg');document.getElementById('btnNext').textContent='次の面 →';}}
+function smsg(id,m,t){const e=document.getElementById(id);e.textContent=m;e.className=`status show ${t}`;}
+function hmsg(id){document.getElementById(id).className='status';}
+
+// ══════════════════════════════════════════════
+// CAMERA
+// ══════════════════════════════════════════════
+function setMethod(m){
+  method=m;
+  document.getElementById('tabM').classList.toggle('active',m==='manual');
+  document.getElementById('tabC').classList.toggle('active',m==='camera');
+  document.getElementById('manualA').style.display=m==='manual'?'':'none';
+  document.getElementById('camA').style.display=m==='camera'?'':'none';
+  if(m==='camera')startCam();else stopCam();
+}
+async function startCam(){
+  try{
+    camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false});
+    const v=document.getElementById('camVideo');v.srcObject=camStream;
+    v.addEventListener('loadedmetadata',()=>{const g=document.getElementById('camGuide'),sz=Math.min(v.clientWidth,v.clientHeight||v.clientWidth)*.62;g.style.width=sz+'px';g.style.height=sz+'px';});
+  }catch(e){smsg('imsg','カメラへのアクセスに失敗しました','err');}
+}
+function stopCam(){if(camStream){camStream.getTracks().forEach(t=>t.stop());camStream=null;}}
+function capPhoto(){
+  const v=document.getElementById('camVideo');if(!v.srcObject){smsg('imsg','カメラが起動していません','err');return;}
+  const cv=document.createElement('canvas');cv.width=v.videoWidth;cv.height=v.videoHeight;
+  cv.getContext('2d').drawImage(v,0,0);
+  const ctx=cv.getContext('2d'),vw=v.videoWidth,vh=v.videoHeight,box=Math.min(vw,vh)*.62,ox=(vw-box)/2,oy=(vh-box)/2,cs=box/3,det=[];
+  for(let r=0;r<3;r++)for(let c=0;c<3;c++){
+    const px=Math.floor(ox+c*cs+cs/2),py=Math.floor(oy+r*cs+cs/2),rad=Math.floor(cs*.18);
+    let tR=0,tG=0,tB=0,cnt=0;
+    for(let dy=-rad;dy<=rad;dy+=2)for(let dx=-rad;dx<=rad;dx+=2){const d=ctx.getImageData(Math.max(0,Math.min(vw-1,px+dx)),Math.max(0,Math.min(vh-1,py+dy)),1,1).data;tR+=d[0];tG+=d[1];tB+=d[2];cnt++;}
+    det.push(rgbToColor(tR/cnt,tG/cnt,tB/cnt));
+  }
+  camDet=det;renderCamRes(det);document.getElementById('camOk').style.display='';
+}
+function rgbToColor(r,g,b){
+  const rn=r/255,gn=g/255,bn=b/255,mx=Math.max(rn,gn,bn),mn=Math.min(rn,gn,bn),d=mx-mn;
+  let h=0,s=mx===0?0:d/mx,v=mx;
+  if(d){if(mx===rn)h=((gn-bn)/d)%6;else if(mx===gn)h=(bn-rn)/d+2;else h=(rn-gn)/d+4;h*=60;if(h<0)h+=360;}
+  if(s<.18&&v>.7)return'W';if(s<.2)return'W';
+  if(h>=48&&h<74&&s>.42)return'Y';if(h>=74&&h<168&&s>.28)return'G';
+  if(h>=168&&h<256&&s>.28)return'B';if((h>=310||h<20)&&s>.36)return'R';
+  if(h>=20&&h<48&&s>.42)return'O';return'W';
+}
+function renderCamRes(det){
+  const cs=34;
+  let h=`<div style="display:grid;grid-template-columns:repeat(3,${cs}px);gap:3px;padding:6px;background:var(--s2);border:1px solid var(--border);border-radius:8px;">`;
+  det.forEach((c,i)=>{h+=`<div onclick="cycDet(${i})" style="width:${cs}px;height:${cs}px;border-radius:4px;background:${CMAP[c]};border:2px solid rgba(255,255,255,.15);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:9px;color:rgba(0,0,0,.32);">${c}</div>`;});
+  h+='</div><div style="font-size:.66rem;color:var(--dim);margin-top:5px;">タップで色変更</div>';
+  document.getElementById('camRes').innerHTML=h;
+}
+function cycDet(i){if(!camDet)return;const ks=Object.keys(CMAP);camDet[i]=ks[(ks.indexOf(camDet[i])+1)%ks.length];renderCamRes(camDet);}
+function acceptCam(){if(!camDet)return;const f=FACES[curFace];fd[f]=[...camDet];fd[f][4]=C0[f];setMethod('manual');smsg('imsg','カメラの色を取得しました','ok');renderGrid();renderNet();}
+
+// ══════════════════════════════════════════════
+// CUBE MODEL
+// Face order for state string: U R F D L B
+// Index within face: row-major, 0=top-left, 8=bottom-right
+// ══════════════════════════════════════════════
+// Face index constants
+const iU=0,iR=1,iF=2,iD=3,iL=4,iB=5;
+
+class Cube {
+  constructor(arr){
+    // arr: 54-element array, or copy
+    this.s=arr?[...arr]:Array(54).fill(null);
+  }
+  clone(){return new Cube(this.s);}
+  // Get sticker: face 0-5, position 0-8
+  g(f,p){return this.s[f*9+p];}
+  // Center of face
+  ctr(f){return this.s[f*9+4];}
+  // Apply move, return new Cube
+  mv(m){
+    const c=new Cube(this.s);
+    const t=m.endsWith('2')?2:m.endsWith("'")?3:1;
+    const fn={U:_U,D:_D,F:_F,B:_B,R:_R,L:_L}[m[0]];
+    if(!fn)return c;
+    for(let i=0;i<t;i++)fn(c.s);
+    return c;
+  }
+  applySeq(seq){
+    let c=this;
+    for(const m of (typeof seq==='string'?seq.trim().split(/\s+/):seq)) c=c.mv(m);
+    return c;
+  }
+  isSolved(){
+    for(let f=0;f<6;f++){const c=this.ctr(f);for(let p=0;p<9;p++)if(this.g(f,p)!==c)return false;}
+    return true;
+  }
+}
+
+// Rotate face clockwise in-place
+function rotateFaceCW(s,base){
+  // 0 1 2      6 3 0
+  // 3 4 5  =>  7 4 1
+  // 6 7 8      8 5 2
+  const tmp=[...s.slice(base,base+9)];
+  s[base+0]=tmp[6];s[base+1]=tmp[3];s[base+2]=tmp[0];
+  s[base+3]=tmp[7];s[base+4]=tmp[4];s[base+5]=tmp[1];
+  s[base+6]=tmp[8];s[base+7]=tmp[5];s[base+8]=tmp[2];
+}
+// Cycle 4 positions (a→b→c→d→a direction = values shift: new_a=old_d, new_b=old_a, ...)
+// We use: cyc(s, [a,b,c,d]) means: s[b]=s[a], s[c]=s[b_old], s[d]=s[c_old], s[a]=s[d_old]
+function cyc4(s,a,b,c,d){const t=s[a];s[a]=s[d];s[d]=s[c];s[c]=s[b];s[b]=t;}
+
+// Face indices: U=0*9=0, R=1*9=9, F=2*9=18, D=3*9=27, L=4*9=36, B=5*9=45
+function _U(s){
+  rotateFaceCW(s,0);
+  // Top row: F[0,1,2] <- R[0,1,2] <- B[0,1,2] <- L[0,1,2] (U turn CW = F gets R's top)
+  // Wait: U CW = looking from top, front row goes right
+  // U CW: L-top -> F-top -> R-top -> B-top -> L-top
+  cyc4(s,18,9,45,36); cyc4(s,19,10,46,37); cyc4(s,20,11,47,38);
+}
+function _D(s){
+  rotateFaceCW(s,27);
+  // D CW (from bottom): F-bottom -> L-bottom -> B-bottom -> R-bottom -> F-bottom
+  // = F[6,7,8] -> L[6,7,8] not quite - need careful mapping
+  // D CW from bottom view: right side of cube goes toward front at bottom
+  // F bottom row [6,7,8], R bottom [6,7,8], B bottom [6,7,8], L bottom [6,7,8]
+  // D CW: R-bottom -> F-bottom -> L-bottom -> B-bottom -> R-bottom
+  cyc4(s,24,33,51,42); cyc4(s,25,34,52,43); cyc4(s,26,35,53,44);
+}
+function _F(s){
+  rotateFaceCW(s,18);
+  // F CW: U-bottom-row -> R-left-col -> D-top-row(reversed) -> L-right-col(reversed)
+  // U[6],U[7],U[8] -> R[0],R[3],R[6]
+  // R[0],R[3],R[6] -> D[2],D[1],D[0]
+  // D[2],D[1],D[0] -> L[8],L[5],L[2]
+  // L[8],L[5],L[2] -> U[6],U[7],U[8]
+  const t0=s[6],t1=s[7],t2=s[8];
+  s[6]=s[36+8];s[7]=s[36+5];s[8]=s[36+2];
+  s[36+8]=s[27+2];s[36+5]=s[27+1];s[36+2]=s[27+0];
+  s[27+0]=s[9+0];s[27+1]=s[9+3];s[27+2]=s[9+6];
+  s[9+0]=t0;s[9+3]=t1;s[9+6]=t2;
+}
+function _B(s){
+  rotateFaceCW(s,45);
+  // B CW (from back): U-top-row -> L-left-col -> D-bottom-row(rev) -> R-right-col(rev)
+  // U[0],U[1],U[2] -> L[0],L[3],L[6] ... need to trace carefully
+  // B face is "behind", so B CW from player's back perspective:
+  // U top [0,1,2]: goes to L left col [0,3,6]
+  // L left col [0,3,6]: goes to D bottom [8,7,6]
+  // D bottom [8,7,6]: goes to R right col [8,5,2]
+  // R right col [8,5,2]: goes to U top [0,1,2]
+  const t0=s[0],t1=s[1],t2=s[2];
+  s[0]=s[9+2];s[1]=s[9+5];s[2]=s[9+8];
+  s[9+2]=s[27+8];s[9+5]=s[27+7];s[9+8]=s[27+6];
+  s[27+8]=s[36+6];s[27+7]=s[36+3];s[27+6]=s[36+0];
+  s[36+0]=t0;s[36+3]=t1;s[36+6]=t2;
+}
+function _R(s){
+  rotateFaceCW(s,9);
+  // R CW (from right): U-right-col -> B-left-col(rev) -> D-right-col -> F-right-col
+  // U[2],U[5],U[8] -> B[6],B[3],B[0] (reversed because B is "flipped")
+  // B[6],B[3],B[0] -> D[2],D[5],D[8] (reversed again)
+  // D[2],D[5],D[8] -> F[2],F[5],F[8]
+  // F[2],F[5],F[8] -> U[2],U[5],U[8]
+  const t0=s[2],t1=s[5],t2=s[8];
+  s[2]=s[18+2];s[5]=s[18+5];s[8]=s[18+8];
+  s[18+2]=s[27+2];s[18+5]=s[27+5];s[18+8]=s[27+8];
+  s[27+2]=s[45+6];s[27+5]=s[45+3];s[27+8]=s[45+0];
+  s[45+0]=t2;s[45+3]=t1;s[45+6]=t0;
+}
+function _L(s){
+  rotateFaceCW(s,36);
+  // L CW (from left): U-left-col -> F-left-col -> D-left-col -> B-right-col(rev)
+  // U[0],U[3],U[6] -> F[0],F[3],F[6]
+  // F[0],F[3],F[6] -> D[0],D[3],D[6]
+  // D[0],D[3],D[6] -> B[8],B[5],B[2] (reversed)
+  // B[8],B[5],B[2] -> U[0],U[3],U[6]
+  const t0=s[0],t1=s[3],t2=s[6];
+  s[0]=s[45+8];s[3]=s[45+5];s[6]=s[45+2];
+  s[45+8]=s[27+6];s[45+5]=s[27+3];s[45+2]=s[27+0];
+  s[27+0]=s[18+0];s[27+3]=s[18+3];s[27+6]=s[18+6];
+  s[18+0]=t0;s[18+3]=t1;s[18+6]=t2;
+}
+
+// Build state array from face input data
+// Face order for state: U(0) R(1) F(2) D(3) L(4) B(5)
+function buildCubeArr(){
+  const arr=[];
+  ['U','R','F','D','L','B'].forEach(f=>fd[f].forEach(c=>arr.push(c)));
+  return arr;
+}
+
+// ══════════════════════════════════════════════
+// SOLVER — Layer by Layer
+// ══════════════════════════════════════════════
+// Helper: apply moves and record them
+function doMoves(st,moves,log){
+  const ms=typeof moves==='string'?moves.trim().split(/\s+/):moves;
+  for(const m of ms){st.c=st.c.mv(m);log.push(m);}
+}
+
+function solve(){
+  const cube=new Cube(buildCubeArr());
+  if(cube.isSolved())return[];
+  const log=[],st={c:cube};
+  step1_cross(st,log);
+  step2_corners(st,log);
+  step3_midEdges(st,log);
+  step4_yellowCross(st,log);
+  step5_OLL(st,log);
+  step6_PLLcorners(st,log);
+  step7_PLLedges(st,log);
+  return compact(log);
+}
+
+// ─ Step 1: White cross on U face (daisy method) ─
+function step1_cross(st,log){
+  const W=()=>st.c.ctr(iU);
+  // Phase A: get white edge pieces onto U face (daisy - white sticker on U)
+  for(let iter=0;iter<60;iter++){
+    if([1,3,5,7].every(i=>st.c.g(iU,i)===W()))break;
+    const c=st.c;
+    // White sticker on D face (pointing down)
+    if(c.g(iD,1)===W()){doMoves(st,'F2',log);continue;}
+    if(c.g(iD,3)===W()){doMoves(st,'L2',log);continue;}
+    if(c.g(iD,5)===W()){doMoves(st,'R2',log);continue;}
+    if(c.g(iD,7)===W()){doMoves(st,'B2',log);continue;}
+    // White sticker on side face bottom edge
+    if(c.g(iF,7)===W()){doMoves(st,'F',log);continue;}
+    if(c.g(iR,7)===W()){doMoves(st,'R',log);continue;}
+    if(c.g(iB,7)===W()){doMoves(st,'B',log);continue;}
+    if(c.g(iL,7)===W()){doMoves(st,'L',log);continue;}
+    // White sticker on side face middle edges (pointing sideways)
+    if(c.g(iF,3)===W()){doMoves(st,"F' U'",log);continue;}
+    if(c.g(iF,5)===W()){doMoves(st,"F U",log);continue;}
+    if(c.g(iR,3)===W()){doMoves(st,"R' U'",log);continue;}
+    if(c.g(iR,5)===W()){doMoves(st,"R U",log);continue;}
+    if(c.g(iB,3)===W()){doMoves(st,"B' U'",log);continue;}
+    if(c.g(iB,5)===W()){doMoves(st,"B U",log);continue;}
+    if(c.g(iL,3)===W()){doMoves(st,"L' U'",log);continue;}
+    if(c.g(iL,5)===W()){doMoves(st,"L U",log);continue;}
+    doMoves(st,'D',log);
+  }
+  // Phase B: align each petal with its center and flip to bottom
+  // Face order around U: F(front,edge=U7), R(right,edge=U5), B(back,edge=U1), L(left,edge=U3)
+  const sideF=[iF,iR,iB,iL];
+  const sideEdgeU=[7,5,1,3];           // which U-edge faces this side
+  const sideStkIdx=[1,1,7,1];          // which index on the side face is the top-middle
+  const flipMv=['F2','R2','B2','L2'];
+  for(let target=0;target<4;target++){
+    const targetColor=st.c.ctr(sideF[target]);
+    // Find which U-edge petal has white on top AND the side sticker = targetColor
+    for(let attempt=0;attempt<8;attempt++){
+      let found=false;
+      for(let e=0;e<4;e++){
+        if(st.c.g(iU,sideEdgeU[e])===W()&&st.c.g(sideF[e],sideStkIdx[e])===targetColor){
+          // Rotate U to bring this petal over target face
+          const rot=(target-e+4)%4;
+          for(let x=0;x<rot;x++)doMoves(st,'U',log);
+          found=true;break;
+        }
+      }
+      if(found)break;
+      doMoves(st,'U',log);
+    }
+    doMoves(st,flipMv[target],log);
+  }
+}
+
+// ─ Step 2: White corners ─
+function step2_corners(st,log){
+  // Do 4 times: insert corner at UFR slot, then rotate to next slot
+  for(let s=0;s<4;s++){
+    insertCornerUFR(st,log);
+    // y-rotation equivalent: U R' D R  puts UFR corner away and moves to next slot
+    doMoves(st,"U R' D R",log);
+  }
+  // At this point all 4 slots have been processed.
+  // Rotate back to fix U alignment (4 y-rotations = identity)
+  // Actually we need to undo 4 y-rotations total... but each rotation is not clean.
+  // Better approach: re-check all 4 slots
+  for(let s=0;s<4;s++){
+    insertCornerUFR(st,log);
+    doMoves(st,"U R' D R",log);
+  }
+}
+
+function insertCornerUFR(st,log){
+  const W=st.c.ctr(iU),fc=st.c.ctr(iF),rc=st.c.ctr(iR);
+  // Already done?
+  if(st.c.g(iU,8)===W&&st.c.g(iF,2)===fc&&st.c.g(iR,0)===rc)return;
+  // If it's in the slot but wrong, pop it out
+  const slot=[st.c.g(iU,8),st.c.g(iF,2),st.c.g(iR,0)];
+  if(slot.includes(W))doMoves(st,"R U R' U' R U R' U'",log);
+  // Find the corner with colors W,fc,rc on D layer
+  for(let t=0;t<4;t++){
+    const dfr=new Set([st.c.g(iD,2),st.c.g(iF,8),st.c.g(iR,6)]);
+    if(dfr.has(W)&&dfr.has(fc)&&dfr.has(rc))break;
+    doMoves(st,'D',log);
+  }
+  // Insert with R U R' U' sequence until placed (max 6)
+  for(let i=0;i<6;i++){
+    if(st.c.g(iU,8)===W&&st.c.g(iF,2)===fc&&st.c.g(iR,0)===rc)return;
+    doMoves(st,"R U R' U'",log);
+  }
+}
+
+// ─ Step 3: Middle layer edges ─
+function step3_midEdges(st,log){
+  const RIGHT="U R U' R' U' F' U F";
+  const LEFT ="U' L' U L U F U' F'";
+  for(let s=0;s<4;s++){
+    insertMidEdgeFR(st,log,RIGHT,LEFT);
+    // y-rotation: move to next slot
+    doMoves(st,"U R' D' R U' R' D R",log);
+  }
+  // Re-do to catch any that got displaced
+  for(let s=0;s<4;s++){
+    insertMidEdgeFR(st,log,RIGHT,LEFT);
+    doMoves(st,"U R' D' R U' R' D R",log);
+  }
+}
+
+function insertMidEdgeFR(st,log,RA,LA){
+  const fc=st.c.ctr(iF),rc=st.c.ctr(iR);
+  if(st.c.g(iF,5)===fc&&st.c.g(iR,3)===rc)return;
+  // If slot occupied with wrong piece, pop it out
+  const has_yellow=st.c.g(iF,5)===st.c.ctr(iU)||st.c.g(iF,5)===st.c.ctr(iD)||
+                   st.c.g(iR,3)===st.c.ctr(iU)||st.c.g(iR,3)===st.c.ctr(iD);
+  if(!has_yellow)doMoves(st,RA,log);
+  // Find the matching edge in U layer
+  for(let t=0;t<4;t++){
+    // U-F edge: U[7] and F[1]
+    if(st.c.g(iF,1)===fc&&st.c.g(iU,7)===rc){doMoves(st,RA,log);return;}
+    if(st.c.g(iF,1)===rc&&st.c.g(iU,7)===fc){doMoves(st,LA,log);return;}
+    doMoves(st,'U',log);
+  }
+}
+
+// ─ Step 4: Yellow cross on D ─
+function step4_yellowCross(st,log){
+  const ALG="F R U R' U' F'";
+  const Y=()=>st.c.ctr(iD);
+  for(let i=0;i<8;i++){
+    const e=[st.c.g(iD,1),st.c.g(iD,3),st.c.g(iD,5),st.c.g(iD,7)];
+    const cnt=e.filter(x=>x===Y()).length;
+    if(cnt===4)return;
+    if(cnt===2){
+      // Orient: find the pattern (line or L-shape) and position correctly
+      for(let r=0;r<4;r++){
+        const d1=st.c.g(iD,1),d3=st.c.g(iD,3),d5=st.c.g(iD,5),d7=st.c.g(iD,7);
+        // Line horizontal: left(3) and right(5) are yellow
+        if(d3===Y()&&d5===Y())break;
+        // L-shape: top(1) and left(3)
+        if(d1===Y()&&d3===Y())break;
+        doMoves(st,'D',log);
+      }
+    }
+    doMoves(st,ALG,log);
+  }
+}
+
+// ─ Step 5: Orient yellow corners (OLL) ─
+function step5_OLL(st,log){
+  const SUNE   ="R U R' U R U2 R'";
+  const ANTISUNE="R' U' R U' R' U2 R";
+  const Y=()=>st.c.ctr(iD);
+  for(let i=0;i<12;i++){
+    const corners=[st.c.g(iD,0),st.c.g(iD,2),st.c.g(iD,6),st.c.g(iD,8)];
+    const cnt=corners.filter(x=>x===Y()).length;
+    if(cnt===4)return;
+    // Find a correctly oriented corner or use headlights
+    // Rotate D to get a good position for Sune
+    for(let r=0;r<4;r++){
+      // Sune works best when: DRF corner has yellow on right face (not on D)
+      if(st.c.g(iR,8)===Y()||st.c.g(iD,8)!==Y())break;
+      doMoves(st,'D',log);
+    }
+    doMoves(st,SUNE,log);
+  }
+}
+
+// ─ Step 6: Permute yellow corners (PLL) ─
+function step6_PLLcorners(st,log){
+  // Aa-perm: cycles 3 corners
+  const AaPERM="x R' U R' D2 R U' R' D2 R2 x'";
+  // Since we don't have x moves, use equivalent:
+  const AaPERM2="R' F R' B2 R F' R' B2 R2";
+  for(let i=0;i<6;i++){
+    if(cornersPermOK(st.c))return;
+    // Find face where 2 corners match (headlights)
+    let found=false;
+    for(let r=0;r<4;r++){
+      // Check if front-face corners match each other
+      if(st.c.g(iF,6)===st.c.g(iF,8)){found=true;break;}
+      doMoves(st,'D',log);
+    }
+    doMoves(st,AaPERM2,log);
+  }
+}
+
+function cornersPermOK(c){
+  return matchCorner(c,iD,2,iF,8,iR,6)&&matchCorner(c,iD,0,iF,6,iL,8)&&
+         matchCorner(c,iD,8,iB,6,iR,8)&&matchCorner(c,iD,6,iB,8,iL,6);
+}
+function matchCorner(c,f1,p1,f2,p2,f3,p3){
+  const s=new Set([c.g(f1,p1),c.g(f2,p2),c.g(f3,p3)]);
+  return s.has(c.ctr(f1))&&s.has(c.ctr(f2))&&s.has(c.ctr(f3));
+}
+
+// ─ Step 7: Permute yellow edges (PLL) ─
+function step7_PLLedges(st,log){
+  // Ua perm: rotates 3 edges counterclockwise
+  const UA="R U' R U R U R U' R' U' R2";
+  // Ub perm: rotates 3 edges clockwise
+  const UB="R2 U R U R' U' R' U' R' U R'";
+  for(let i=0;i<8;i++){
+    if(st.c.isSolved())return;
+    // Count correct edges
+    let goodEdge=-1;
+    for(let r=0;r<4;r++){
+      if(st.c.g(iF,7)===st.c.ctr(iF)&&st.c.g(iD,1)===st.c.ctr(iD)){goodEdge=r;break;}
+      doMoves(st,'D',log);
+    }
+    // Determine direction: check if edges need CW or CCW rotation
+    // Try Ua, if not solved in next check, try Ub
+    const snapshot=[...st.c.s];
+    doMoves(st,UA,log);
+    // Check if closer to solved
+    let good=0;
+    for(const face of[iF,iR,iB,iL]){if(st.c.g(face,7)===st.c.ctr(face))good++;}
+    if(good===0){
+      // Undo and try Ub instead
+      st.c=new Cube(snapshot);
+      // Remove last UA moves from log
+      const uaLen=UA.trim().split(/\s+/).length;
+      log.splice(log.length-uaLen,uaLen);
+      doMoves(st,UB,log);
+    }
+  }
+}
+
+function compact(moves){
+  let changed=true;
+  while(changed){
+    changed=false;const r=[];let i=0;
+    while(i<moves.length){
+      if(i+1<moves.length&&moves[i][0]===moves[i+1][0]){
+        const b=moves[i][0],v={'':1,'2':2,"'":3};
+        const t=((v[moves[i].slice(1)]||1)+(v[moves[i+1].slice(1)]||1))%4;
+        if(t===0){i+=2;changed=true;continue;}
+        r.push(t===1?b:t===2?b+'2':b+"'");i+=2;changed=true;
+      }else{r.push(moves[i]);i++;}
+    }
+    moves=r;
+  }
+  return moves;
+}
+
+function validateInput(){
+  const cnt={W:0,Y:0,O:0,R:0,B:0,G:0};
+  for(const f of FACES){
+    if(!faceOK(f))return`${FNAME[f]}が未完成です`;
+    fd[f].forEach(c=>{if(c)cnt[c]++;});
+  }
+  for(const[c,k]of Object.entries(cnt))if(k!==9)return`${CNAME[c]}が${k}個（9個必要）`;
+  return null;
+}
+function calcSol(){
+  const err=validateInput();
+  if(err){smsg('imsg',`入力エラー: ${err}`,'err');return;}
+  smsg('imsg','計算中...','info');
+  setTimeout(()=>{
+    try{
+      sol=solve();
+      // Verify solution
+      let check=new Cube(buildCubeArr());
+      for(const m of sol)check=check.mv(m);
+      if(!check.isSolved()){smsg('imsg','解法の検証に失敗しました。入力を確認してください。','err');return;}
+      curMove=-1;enterSolve();
+    }catch(e){smsg('imsg','エラー: '+e.message,'err');console.error(e);}
+  },60);
+}
+
+// ══════════════════════════════════════════════
+// SOLVE PHASE
+// ══════════════════════════════════════════════
+function enterSolve(){
+  stopCam();
+  document.getElementById('phaseInput').style.display='none';
+  const sp=document.getElementById('phaseSolve');sp.style.display='flex';sp.classList.add('show');
+  buildMoveList();updateOverlay();updateProgress();
+  initCanvas();window.addEventListener('resize',resizeCanvas);
+}
+function buildMoveList(){
+  const c=document.getElementById('mlist');c.innerHTML='';
+  if(!sol.length){c.innerHTML='<span style="color:#06d6a0;font-family:Space Mono,monospace;font-size:.7rem;">✓ 既に完成！</span>';return;}
+  sol.forEach((m,i)=>{const ch=document.createElement('div');ch.className='mchip'+(i<curMove?' done':i===curMove?' cur':'');ch.id=`mc${i}`;ch.textContent=m;c.appendChild(ch);});
+}
+function updateMoveList(){
+  sol.forEach((_,i)=>{const e=document.getElementById(`mc${i}`);if(e)e.className='mchip'+(i<curMove?' done':i===curMove?' cur':'');});
+  const cur=document.getElementById(`mc${curMove}`);if(cur)cur.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
+}
+const MDESC={
+  'U':'上面を時計回りに90°','U\'':'上面を反時計回りに90°','U2':'上面を180°回転',
+  'D':'下面を時計回りに90°','D\'':'下面を反時計回りに90°','D2':'下面を180°回転',
+  'F':'前面を時計回りに90°','F\'':'前面を反時計回りに90°','F2':'前面を180°回転',
+  'B':'後面を時計回りに90°','B\'':'後面を反時計回りに90°','B2':'後面を180°回転',
+  'R':'右面を時計回りに90°','R\'':'右面を反時計回りに90°','R2':'右面を180°回転',
+  'L':'左面を時計回りに90°','L\'':'左面を反時計回りに90°','L2':'左面を180°回転',
+};
+function updateOverlay(){
+  const tot=sol.length;
+  document.getElementById('tctr').textContent=`${Math.max(0,curMove+1)} / ${tot} 手`;
+  if(!tot){document.getElementById('ovStep').textContent='完成！';document.getElementById('ovMove').textContent='🎉';document.getElementById('ovDesc').textContent='既に揃っています';return;}
+  if(curMove<0){document.getElementById('ovStep').textContent=`全 ${tot} 手`;document.getElementById('ovMove').textContent='START';document.getElementById('ovDesc').textContent='▶ 自動再生 または 次へ を押してください';return;}
+  if(curMove>=tot){document.getElementById('ovStep').textContent='🎉 完成！';document.getElementById('ovMove').textContent='✓';document.getElementById('ovDesc').textContent='おめでとうございます！';return;}
+  const m=sol[curMove];
+  document.getElementById('ovStep').textContent=`STEP ${curMove+1} / ${tot}`;
+  document.getElementById('ovMove').textContent=m;
+  document.getElementById('ovDesc').textContent=MDESC[m]||m;
+}
+function updateProgress(){const tot=sol.length,s=Math.min(Math.max(curMove+1,0),tot);document.getElementById('pfill').style.width=(tot>0?s/tot*100:0)+'%';}
+function nextMove(){if(curMove<sol.length){curMove++;pop();drawCube();updateOverlay();updateProgress();updateMoveList();}}
+function prevMove(){if(curMove>=0){curMove--;pop();drawCube();updateOverlay();updateProgress();updateMoveList();}}
+function pop(){const o=document.getElementById('overlay');o.classList.remove('pop');requestAnimationFrame(()=>o.classList.add('pop'));}
+function toggleAuto(){
+  isAuto=!isAuto;
+  const b=document.getElementById('btnAuto');
+  b.textContent=isAuto?'⏸ 停止':'▶ 自動再生';
+  b.className='tbbtn '+(isAuto?'tbpause':'tbplay');
+  if(isAuto)autoTimer=setInterval(()=>{if(curMove>=sol.length){toggleAuto();return;}nextMove();},900);
+  else clearInterval(autoTimer);
+}
+function restart(){
+  if(isAuto)toggleAuto();
+  window.removeEventListener('resize',resizeCanvas);
+  document.getElementById('phaseInput').style.display='';
+  const sp=document.getElementById('phaseSolve');sp.style.display='none';sp.classList.remove('show');
+  curFace=0;sol=[];curMove=-1;initFD();
+  renderPills();renderHeader();renderGrid();renderNet();hmsg('imsg');
+  document.getElementById('btnNext').textContent='次の面 →';
+}
+
+// ══════════════════════════════════════════════
+// 3D CUBE RENDERER
+// ══════════════════════════════════════════════
+let canvas,ctx2d,cW,cH;
+let rotX=0.42,rotY=0.58,drag=false,lmx=0,lmy=0;
+
+function initCanvas(){
+  canvas=document.getElementById('cc');
+  resizeCanvas();
+  canvas.onmousedown=e=>{drag=true;lmx=e.clientX;lmy=e.clientY;};
+  document.addEventListener('mousemove',e=>{if(!drag)return;rotY+=(e.clientX-lmx)*.013;rotX+=(e.clientY-lmy)*.013;lmx=e.clientX;lmy=e.clientY;drawCube();});
+  document.addEventListener('mouseup',()=>drag=false);
+  canvas.ontouchstart=e=>{drag=true;lmx=e.touches[0].clientX;lmy=e.touches[0].clientY;e.preventDefault();};
+  canvas.ontouchmove=e=>{rotY+=(e.touches[0].clientX-lmx)*.013;rotX+=(e.touches[0].clientY-lmy)*.013;lmx=e.touches[0].clientX;lmy=e.touches[0].clientY;drawCube();e.preventDefault();};
+  canvas.ontouchend=()=>drag=false;
+  drawCube();
+}
+function resizeCanvas(){
+  const st=canvas.parentElement;
+  cW=st.clientWidth||600;cH=st.clientHeight||480;
+  canvas.width=cW;canvas.height=cH;
+  ctx2d=canvas.getContext('2d');
+  drawCube();
+}
+
+function getCubeState(){
+  let c=new Cube(buildCubeArr());
+  const upTo=Math.min(curMove,sol.length-1);
+  for(let i=0;i<=upTo;i++)if(curMove>=0)c=c.mv(sol[i]);
+  return c;
+}
+
+function drawCube(){
+  if(!canvas||!ctx2d)return;
+  ctx2d.clearRect(0,0,cW,cH);
+  const cube=getCubeState();
+  const sz=Math.min(cW,cH)*0.28;
+  const cx=cW/2, cy=cH/2;
+
+  // Rotation matrices
+  const cX=Math.cos(rotX),sX=Math.sin(rotX);
+  const cY=Math.cos(rotY),sY=Math.sin(rotY);
+
+  // Rotate point: Y-axis first, then X-axis
+  function rot3(x,y,z){
+    const x2=x*cY+z*sY, z2=-x*sY+z*cY;
+    const y2=y*cX-z2*sX, z3=y*sX+z2*cX;
+    return[x2,y2,z3];
+  }
+  // Perspective projection
+  function proj(x,y,z){
+    const[rx,ry,rz]=rot3(x,y,z);
+    const scale=3.8/(3.8+rz+1.5); // shift z so cube doesn't go behind camera
+    return[cx+rx*sz*scale, cy+ry*sz*scale, rz];
+  }
+
+  // Current move face highlight
+  let hlFace=-1;
+  if(curMove>=0&&curMove<sol.length){
+    const mv=sol[curMove];
+    hlFace={'U':iU,'R':iR,'F':iF,'D':iD,'L':iL,'B':iB}[mv[0]]??-1;
+  }
+
+  const polys=[];
+
+  // 6 faces definition: face-index, normal, u-axis, v-axis, base-center
+  const faceDefs=[
+    {fi:iU, n:[0,-1,0], u:[1,0,0], v:[0,0,1],  base:[0,-1,0]},
+    {fi:iD, n:[0, 1,0], u:[1,0,0], v:[0,0,-1], base:[0, 1,0]},
+    {fi:iF, n:[0,0,-1], u:[1,0,0], v:[0,-1,0], base:[0,0,-1]},
+    {fi:iB, n:[0,0, 1], u:[-1,0,0],v:[0,-1,0], base:[0,0, 1]},
+    {fi:iR, n:[1,0,0],  u:[0,0,-1],v:[0,-1,0], base:[1,0,0]},
+    {fi:iL, n:[-1,0,0], u:[0,0, 1],v:[0,-1,0], base:[-1,0,0]},
+  ];
+
+  for(const fdef of faceDefs){
+    const{fi,n,u,v,base}=fdef;
+    // Back-face culling: rotate normal, check if facing camera (z < 0 = faces toward camera)
+    const[rnx,rny,rnz]=rot3(...n);
+    if(rnz>0)continue; // facing away
+
+    // Face background (black plastic frame)
+    const bgPts=[[-1,-1],[1,-1],[1,1],[-1,1]].map(([pu,pv])=>
+      proj(base[0]+u[0]*pu+v[0]*pv, base[1]+u[1]*pu+v[1]*pv, base[2]+u[2]*pu+v[2]*pv)
+    );
+    polys.push({pts:bgPts, col:'#141414', depth:avgDepth(bgPts), hl:false});
+
+    // 3x3 stickers on this face
+    for(let row=0;row<3;row++){
+      for(let col=0;col<3;col++){
+        const stickerIdx=row*3+col;
+        const colorKey=cube.g(fi,stickerIdx);
+        const col3d=CMAP[colorKey]||'#444';
+
+        // Center of sticker in local face coords (-2/3 to 2/3 in steps of 2/3)
+        const pu=-2/3+col*(2/3);
+        const pv=-2/3+row*(2/3);
+        const inset=0.29; // half sticker size (with gap)
+
+        const pts=[
+          [-inset,-inset],[inset,-inset],[inset,inset],[-inset,inset]
+        ].map(([du,dv])=>{
+          const wx=base[0]+u[0]*(pu+du)+v[0]*(pv+dv);
+          const wy=base[1]+u[1]*(pu+du)+v[1]*(pv+dv);
+          const wz=base[2]+u[2]*(pu+du)+v[2]*(pv+dv);
+          return proj(wx,wy,wz);
+        });
+
+        polys.push({pts, col:col3d, depth:avgDepth(pts), hl:(fi===hlFace)});
+      }
+    }
+  }
+
+  // Painter's algorithm: sort by depth descending (furthest first)
+  polys.sort((a,b)=>b.depth-a.depth);
+
+  // Draw all polygons
+  for(const p of polys){
+    ctx2d.beginPath();
+    ctx2d.moveTo(p.pts[0][0],p.pts[0][1]);
+    for(let i=1;i<p.pts.length;i++)ctx2d.lineTo(p.pts[i][0],p.pts[i][1]);
+    ctx2d.closePath();
+    ctx2d.fillStyle=p.col;
+    ctx2d.fill();
+    if(p.hl&&p.col!=='#141414'){
+      ctx2d.strokeStyle='rgba(0,229,255,0.85)';
+      ctx2d.lineWidth=2.5;
+      ctx2d.stroke();
+    }
+  }
+}
+
+function avgDepth(pts){return pts.reduce((s,p)=>s+p[2],0)/pts.length;}
+
+// ══════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════
+initFD();renderPills();renderHeader();renderGrid();renderNet();
+</script>
+</body>
+</html>
