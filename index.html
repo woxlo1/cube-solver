@@ -326,7 +326,23 @@ function renderCamRes(det){
   document.getElementById('camRes').innerHTML=h;
 }
 function cycDet(i){if(!camDet)return;const ks=Object.keys(CMAP);camDet[i]=ks[(ks.indexOf(camDet[i])+1)%ks.length];renderCamRes(camDet);}
-function acceptCam(){if(!camDet)return;const f=FACES[curFace];fd[f]=[...camDet];fd[f][4]=C0[f];setMethod('manual');smsg('imsg','カメラの色を取得しました','ok');renderGrid();renderNet();}
+function acceptCam(){
+  if(!camDet)return;
+  const f=FACES[curFace];
+  fd[f]=[...camDet];
+  fd[f][4]=C0[f]; // センターは必ず正しい色を強制
+  // 手動タブに切り替え（setMethodを使わず直接）
+  document.getElementById('tabM').classList.add('active');
+  document.getElementById('tabC').classList.remove('active');
+  document.getElementById('manualA').style.display='';
+  document.getElementById('camA').style.display='none';
+  method='manual';
+  stopCam();
+  renderGrid();
+  renderNet();
+  hmsg('imsg'); // まずエラーメッセージをクリア
+  setTimeout(()=>smsg('imsg','✓ カメラの色を取得しました。修正が必要なマスはクリックして変更できます。','ok'),50);
+}
 
 // ══════════════════════════════════════════════
 // CUBE MODEL
